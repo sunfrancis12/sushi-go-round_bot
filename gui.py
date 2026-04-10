@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import threading
 import sys
+from pynput import keyboard
 
 import main as game
 
@@ -54,6 +55,16 @@ class SushiGUI:
 
         # 重導向 print 輸出到日誌視窗
         sys.stdout = TextRedirector(self.log_text, self.root)
+
+        # 按下 X 鍵關閉視窗（視窗有焦點時）
+        self.root.bind("<x>", lambda e: self._quit())
+        self.root.bind("<X>", lambda e: self._quit())
+
+        # 全域熱鍵 Ctrl+Q（遊戲視窗有焦點時也能關閉）
+        self._hotkey = keyboard.GlobalHotKeys({
+            "<ctrl>+q": self._quit
+        })
+        self._hotkey.start()
 
         # 每 500ms 更新一次庫存顯示
         self._update_inventory()
@@ -114,6 +125,42 @@ class SushiGUI:
                 )
                 btn.pack(pady=3)
 
+        # ── 最右欄：操作 ──
+        action_frame = tk.LabelFrame(top_frame, text="操作", padx=8, pady=8,
+                                     font=("Arial", 11, "bold"))
+        action_frame.grid(row=0, column=3, padx=5, pady=5, sticky="ns")
+
+        tk.Button(
+            action_frame, text="收盤", width=12, height=2,
+            font=("Arial", 10, "bold"),
+            bg="#FF9800", fg="white", activebackground="#E65100",
+            command=self._action_check_plates
+        ).pack(pady=3)
+
+        tk.Button(
+            action_frame, text="偵測訂單", width=12, height=2,
+            font=("Arial", 10, "bold"),
+            bg="#9C27B0", fg="white", activebackground="#6A1B9A",
+            command=self._action_detect_orders
+        ).pack(pady=3)
+
+        # ── 訂單顯示區 ──
+        orders_frame = tk.LabelFrame(self.root, text="顧客訂單", padx=8, pady=8,
+                                     font=("Arial", 11, "bold"))
+        orders_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
+
+        self.order_labels = {}
+        for i, seat in enumerate(["customer1", "customer2", "customer3",
+                                   "customer4", "customer5", "customer6"]):
+            col = tk.Frame(orders_frame)
+            col.grid(row=0, column=i, padx=10, pady=4)
+            tk.Label(col, text=f"客1座" if i == 0 else f"客{i+1}座",
+                     font=("Arial", 9, "bold")).pack()
+            lbl = tk.Label(col, text="--", font=("Arial", 9),
+                           width=10, bg="#f0f0f0", relief="sunken", pady=3)
+            lbl.pack()
+            self.order_labels[seat] = lbl
+
         # ── 底部：執行日誌 ──
         log_frame = tk.LabelFrame(self.root, text="執行日誌", padx=8, pady=5,
                                   font=("Arial", 11, "bold"))
@@ -128,6 +175,10 @@ class SushiGUI:
 
         tk.Button(log_frame, text="清除日誌", command=self._clear_log,
                   font=("Arial", 9)).pack(anchor="e", pady=2)
+
+    def _quit(self):
+        self._hotkey.stop()
+        self.root.after(0, self.root.destroy)
 
     def _update_inventory(self):
         for name, lbl in self.inv_labels.items():
@@ -151,6 +202,26 @@ class SushiGUI:
         threading.Thread(
             target=game.restock_ingredients, args=(name,), daemon=True
         ).start()
+
+    def _action_check_plates(self):
+        print("[操作] 檢查並收盤...")
+        threading.Thread(target=game.check_plates, daemon=True).start()
+
+    def _action_detect_orders(self):
+        print("[操作] 偵測顧客訂單...")
+        def _detect():
+            game.detect_orders()
+            self.root.after(0, self._refresh_order_labels)
+        threading.Thread(target=_detect, daemon=True).start()
+
+    def _refresh_order_labels(self):
+        for seat, lbl in self.order_labels.items():
+            recipe = game.current_orders.get(seat)
+            display = RECIPE_DISPLAY_NAMES.get(recipe, "無訂單") if recipe else "無訂單"
+            lbl.config(
+                text=display,
+                bg="#c8e6c9" if recipe else "#f0f0f0"
+            )
 
     def _clear_log(self):
         self.log_text.configure(state="normal")

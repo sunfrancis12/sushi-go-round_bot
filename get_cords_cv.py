@@ -3,32 +3,24 @@ import numpy as np
 import mss
 import time
 
+
 # --- 設定區 ---
 # 格式: (中心X, 中心Y, 寬度, 高度)
-RECEIPE_SIZE = {
+ORDER_SIZE = {
     "height": 150,
     "width": 180
 }
 
-INGREDIENTS_SIZE = {
-    "height": 180,
-    "width": 180
+MONITOR_CONFIGS = {
+    "customer1": (841, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
+    "customer2": (1253, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
+    "customer3": (1669, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
+    "customer4": (2089, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
+    "customer5": (2500, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
+    "customer6": (2914, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
 }
 
-MONITOR_CONFIGS = {
-    "customer1": (841, 415, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "customer2": (1253, 418, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "customer3": (1669, 414, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "customer4": (2089, 407, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "customer5": (2500, 412, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "customer6": (2914, 413, RECEIPE_SIZE["width"], RECEIPE_SIZE["height"]),
-    "shirmp": (758, 1499, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"]),
-    "rice": (995, 1504, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"]),
-    "nori": (754, 1722, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"]),
-    "fishegg": (981, 1730, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"]),
-    "salmon": (752, 1960, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"]),
-    "unagi": (981, 1960, INGREDIENTS_SIZE["width"], INGREDIENTS_SIZE["height"])
-}
+INGREDIENT_NAMES = ["shrimp", "rice", "nori", "fishegg", "salmon", "unagi"]
 
 def get_mss_dict(cx, cy, w, h):
     """將中心點座標轉換為 mss 格式"""
@@ -58,7 +50,7 @@ def start_visual_debug():
                 x1, y1 = int(cx - w/2), int(cy - h/2)
                 x2, y2 = int(cx + w/2), int(cy + h/2)
                 cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                cv2.putText(display_img, name, (x1, y1 - 10), 
+                cv2.putText(display_img, name, (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
             # 顯示結果

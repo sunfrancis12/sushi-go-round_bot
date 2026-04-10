@@ -1,5 +1,6 @@
 import pyautogui
 import threading
+from vision import check_all_orders
 
 # 定義食材座標
 INGREDIENTS = {
@@ -77,6 +78,7 @@ INITIAL_STOCK = {
 # 每次補貨補充的數量（補貨後 6.5 秒才到貨）
 RESTOCK_AMOUNTS = {
     "shirmp":   5,
+    "rice":    10,
     "nori":    10,
     "fishegg": 10,
     "salmon":   5,
@@ -87,6 +89,16 @@ RESTOCK_DELAY = 6.5  # 補貨延遲秒數
 
 # 目前庫存（執行時動態變化）
 inventory = dict(INITIAL_STOCK)
+
+# 目前偵測到的顧客訂單
+current_orders = {}
+
+def detect_orders(confidence=0.8):
+    """偵測所有顧客訂單並更新 current_orders"""
+    global current_orders
+    print("[訂單偵測] 掃描中...")
+    current_orders = check_all_orders(confidence)
+    return current_orders
 
 # 每道壽司消耗的食材數量
 RECIPE_INGREDIENTS = {
@@ -138,10 +150,12 @@ def print_inventory():
 # 檢查盤子是否存在
 def check_plates():
     for plate, coord in PLATES.items():
-        # 使用 tolerance 容許些微的顏色偏移
-        if not pyautogui.pixelMatchesColor(coord[0], coord[1], TABLE_COLOR, tolerance=10):
-            print(f"發現盤子！點擊收盤 {plate}...")
-            pyautogui.click(coord)
+        #直接點擊
+        pyautogui.click(coord)
+        # # 使用 tolerance 容許些微的顏色偏移
+        # if not pyautogui.pixelMatchesColor(coord[0], coord[1], TABLE_COLOR, tolerance=10):
+        #     print(f"發現盤子！點擊收盤 {plate}...")
+        #     pyautogui.click(coord)
 
 # 製作壽司
 def make_sushi(name):
