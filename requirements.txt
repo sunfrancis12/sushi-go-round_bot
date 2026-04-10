@@ -1,3 +1,7 @@
 pyautogui
 pynput
 opencv-python
+pillow
+pytesseract
+mss
+easyocr
