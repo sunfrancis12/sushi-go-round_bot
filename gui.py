@@ -60,14 +60,20 @@ class SushiGUI:
         self.root.bind("<x>", lambda e: self._quit())
         self.root.bind("<X>", lambda e: self._quit())
 
-        # 全域熱鍵 Ctrl+Q（遊戲視窗有焦點時也能關閉）
+        # 全域熱鍵 Ctrl+Q 關閉、Ctrl+S 停止自動遊玩、Ctrl+R 重置
         self._hotkey = keyboard.GlobalHotKeys({
-            "<ctrl>+q": self._quit
+            "<ctrl>+q": self._quit,
+            "<ctrl>+s": self._hotkey_stop_play,
+            "<ctrl>+r": self._hotkey_reset,
         })
         self._hotkey.start()
 
         # 每 500ms 更新一次庫存顯示
         self._update_inventory()
+
+        # 自動遊玩狀態
+        self._playing = False
+        self._update_order_status()
 
         print("=== 控制台已啟動 ===")
         game.print_inventory()
@@ -144,12 +150,35 @@ class SushiGUI:
             command=self._action_detect_orders
         ).pack(pady=3)
 
+        tk.Button(
+            action_frame, text="偵測關卡結果", width=12, height=2,
+            font=("Arial", 10, "bold"),
+            bg="#F44336", fg="white", activebackground="#B71C1C",
+            command=self._action_check_game_finished
+        ).pack(pady=3)
+
+        self._play_btn = tk.Button(
+            action_frame, text="▶ 開始遊玩", width=12, height=2,
+            font=("Arial", 10, "bold"),
+            bg="#009688", fg="white", activebackground="#00695C",
+            command=self._action_start_stop_play
+        )
+        self._play_btn.pack(pady=3)
+
+        tk.Button(
+            action_frame, text="🔄 重置遊戲", width=12, height=2,
+            font=("Arial", 10, "bold"),
+            bg="#607D8B", fg="white", activebackground="#37474F",
+            command=self._action_reset
+        ).pack(pady=3)
+
         # ── 訂單顯示區 ──
         orders_frame = tk.LabelFrame(self.root, text="顧客訂單", padx=8, pady=8,
                                      font=("Arial", 11, "bold"))
         orders_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
 
         self.order_labels = {}
+        self.order_status_labels = {}
         for i, seat in enumerate(["customer1", "customer2", "customer3",
                                    "customer4", "customer5", "customer6"]):
             col = tk.Frame(orders_frame)
@@ -160,6 +189,10 @@ class SushiGUI:
                            width=10, bg="#f0f0f0", relief="sunken", pady=3)
             lbl.pack()
             self.order_labels[seat] = lbl
+            status_lbl = tk.Label(col, text="--", font=("Arial", 8),
+                                  width=10, bg="#f0f0f0", relief="flat", pady=2)
+            status_lbl.pack()
+            self.order_status_labels[seat] = status_lbl
 
         # ── 底部：執行日誌 ──
         log_frame = tk.LabelFrame(self.root, text="執行日誌", padx=8, pady=5,
@@ -214,6 +247,69 @@ class SushiGUI:
             self.root.after(0, self._refresh_order_labels)
         threading.Thread(target=_detect, daemon=True).start()
 
+    def _hotkey_stop_play(self):
+        if self._playing:
+            self.root.after(0, self._stop_play_ui)
+
+    def _hotkey_reset(self):
+        self.root.after(0, self._action_reset)
+
+    def _stop_play_ui(self):
+        game.stop_auto_play()
+        self._playing = False
+        self._play_btn.config(text="▶ 開始遊玩", bg="#009688")
+        print("[熱鍵] Ctrl+S 停止自動遊玩")
+
+    def _action_reset(self):
+        game.reset_game()
+        self._playing = False
+        self._play_btn.config(text="▶ 開始遊玩", bg="#009688")
+        print("[重置] 已重置所有狀態")
+
+    def _action_start_stop_play(self):
+        if not self._playing:
+            self._playing = True
+            self._play_btn.config(text="■ 停止遊玩", bg="#e53935")
+            print("[操作] 自動遊玩啟動...")
+            threading.Thread(target=game.start_auto_play, daemon=True).start()
+        else:
+            game.stop_auto_play()
+            self._playing = False
+            self._play_btn.config(text="▶ 開始遊玩", bg="#009688")
+            print("[操作] 自動遊玩停止...")
+
+    def _update_order_status(self):
+        STATUS_COLORS = {
+            "待處理": "#FFF9C4",
+            "製作中": "#FFE0B2",
+            "已送出": "#BBDEFB",
+            "完成":   "#C8E6C9",
+        }
+        # 如果自動遊玩已由內部停止（關卡結束）則更新按鈕
+        if self._playing and not game._auto_play_running:
+            self._playing = False
+            self._play_btn.config(text="▶ 開始遊玩", bg="#009688")
+
+        for seat in self.order_status_labels:
+            info = game.order_status.get(seat, {})
+            order = info.get("order")
+            status = info.get("status", "--")
+            color = STATUS_COLORS.get(status, "#f0f0f0")
+
+            # 訂單名稱
+            display = RECIPE_DISPLAY_NAMES.get(order, "無訂單") if order else "無訂單"
+            order_bg = "#c8e6c9" if order else "#f0f0f0"
+            self.order_labels[seat].config(text=display, bg=order_bg)
+
+            # 狀態
+            self.order_status_labels[seat].config(text=status, bg=color)
+
+        self.root.after(500, self._update_order_status)
+
+    def _action_check_game_finished(self):
+        print("[操作] 偵測關卡結果...")
+        threading.Thread(target=game.check_game_finished, daemon=True).start()
+
     def _refresh_order_labels(self):
         for seat, lbl in self.order_labels.items():
             recipe = game.current_orders.get(seat)
@@ -222,7 +318,6 @@ class SushiGUI:
                 text=display,
                 bg="#c8e6c9" if recipe else "#f0f0f0"
             )
-
     def _clear_log(self):
         self.log_text.configure(state="normal")
         self.log_text.delete("1.0", tk.END)

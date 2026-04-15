@@ -18,6 +18,9 @@ CUSTOMER_CONFIGS = {
     "customer6": (2914, 414, ORDER_SIZE["width"], ORDER_SIZE["height"]),
 }
 
+WIN_REGION = (1462, 613, 930, 130)    # 需大於 win.png (922x123)
+FAIL_REGION = (1297, 699, 1270, 130)  # 需大於 failed.png (1258x117)
+
 # 圖片資料夾路徑
 ORDERS_IMAGE_DIR = os.path.join(os.path.dirname(__file__), "orders_image")
 
@@ -32,6 +35,24 @@ ORDER_IMAGES = {
 def get_region(cx, cy, w, h):
     """將中心點座標轉換為 pyautogui region 格式 (left, top, width, height)"""
     return (int(cx - w / 2), int(cy - h / 2), int(w), int(h))
+
+def check_single_seat(seat_name, confidence=0.8):
+    """
+    只掃描單一座位的訂單。
+    回傳料理名稱字串，或 None（無法辨識）。
+    """
+    if seat_name not in CUSTOMER_CONFIGS:
+        return None
+    cx, cy, w, h = CUSTOMER_CONFIGS[seat_name]
+    region = get_region(cx, cy, w, h)
+    for recipe_name, img_path in ORDER_IMAGES.items():
+        try:
+            match = pyautogui.locateOnScreen(img_path, region=region, confidence=confidence)
+            if match:
+                return recipe_name
+        except pyautogui.ImageNotFoundException:
+            continue
+    return None
 
 def check_all_orders(confidence=0.8):
     """
@@ -58,6 +79,30 @@ def check_all_orders(confidence=0.8):
     total_elapsed = time.perf_counter() - total_start
     print(f"  總計耗時: {total_elapsed:.3f}s")
     return results
+
+def check_game_finished(confidence=0.8):
+    """偵測關卡是否通關"""
+    
+    #check win
+    WIN_IMAGE = os.path.join(os.path.dirname(__file__), "game_result", "win.png")
+    try:
+        match = pyautogui.locateOnScreen(WIN_IMAGE, region=WIN_REGION, confidence=confidence)
+        if match:
+            return 1
+    except pyautogui.ImageNotFoundException:
+        pass
+    
+    #check fail
+    FAIL_IMAGE = os.path.join(os.path.dirname(__file__), "game_result", "failed.png")
+    try:
+        match = pyautogui.locateOnScreen(FAIL_IMAGE, region=FAIL_REGION, confidence=confidence)
+        if match:
+            return 2
+    except pyautogui.ImageNotFoundException:
+        pass
+    
+    return 0
+    
 
 if __name__ == "__main__":
     orders = check_all_orders()
