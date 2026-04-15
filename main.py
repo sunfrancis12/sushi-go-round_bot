@@ -13,6 +13,11 @@ INGREDIENTS = {
  "unagi": (981, 1960)
 }
 
+# Button region
+# (1930, 1680) Continue
+# (1462, 617) (2376, 721) WIN
+# (1297, 699) (2544, 816) Fail
+
 # 定義工作臺座標
 WORKSTATIONS = (1442, 1714)
 
